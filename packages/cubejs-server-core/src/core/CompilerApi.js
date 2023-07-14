@@ -31,7 +31,16 @@ export class CompilerApi {
     this.graphqlSchema = schema;
   }
 
-  getGraphQLSchema() {
+  async getGraphQLSchema() {
+    let compilerVersion = (
+      this.schemaVersion && await this.schemaVersion() ||
+      'default_schema_version'
+    );
+
+    if (this.compilerVersion !== compilerVersion) {
+      return null
+    }
+    
     return this.graphqlSchema;
   }
 

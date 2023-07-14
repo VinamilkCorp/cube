@@ -215,7 +215,7 @@ class ApiGateway {
       ],
       async (req, res) => {
         const compilerApi = this.getCompilerApi(req.context);
-        let schema = compilerApi.getGraphQLSchema();
+        let schema = await compilerApi.getGraphQLSchema();
         if (!schema) {
           let metaConfig = await compilerApi.metaConfig({
             requestId: req.context.requestId,

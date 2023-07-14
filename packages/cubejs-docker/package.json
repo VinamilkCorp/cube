@@ -36,7 +36,9 @@
     "@cubejs-backend/sqlite-driver": "^0.34.41",
     "@cubejs-backend/trino-driver": "^0.34.43",
     "cubejs-cli": "^0.34.43",
-    "typescript": "~5.2.2"
+    "typescript": "~5.2.2",
+    "express-prometheus-middleware": "^1.2.0",
+    "prom-client": "^13.1.0"
   },
   "resolutions": {
     "colors": "1.4.0"

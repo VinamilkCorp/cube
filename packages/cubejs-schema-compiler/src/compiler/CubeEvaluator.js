@@ -278,10 +278,10 @@ export class CubeEvaluator extends CubeSymbols {
       let memberDefinition;
       if (type === 'measures') {
         // TODO support type qualifiers on min and max
-        const type = BaseQuery.isCalculatedMeasureType(resolvedMember.type) ? resolvedMember.type : 'number';
+        const measureType = BaseQuery.isCalculatedMeasureType(resolvedMember.type) ? resolvedMember.type : 'number';
         memberDefinition = {
           sql,
-          type: type,
+          type: measureType,
           aggType: resolvedMember.type,
           meta: resolvedMember.meta,
           description: resolvedMember.description,

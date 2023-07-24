@@ -14,4 +14,4 @@ cp -r ../cubejs-server-core/dist/src/* ./replacement_packages/cubejs-server-core
 cp -r ../cubejs-schema-compiler/dist/src/* ./replacement_packages/cubejs-schema-compiler/
 
 
-docker buildx build --platform linux/amd64 -t vinamilkcorp/cube:1.0.4 -f latest.Dockerfile .
+docker buildx build --platform linux/amd64 -t vinamilkcorp/cube:1.0.5 -f latest.Dockerfile .

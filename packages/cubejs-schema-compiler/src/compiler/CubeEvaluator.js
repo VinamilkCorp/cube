@@ -277,10 +277,12 @@ export class CubeEvaluator extends CubeSymbols {
       const sql = new Function(path[0], `return \`\${${memberRef.member}}\`;`);
       let memberDefinition;
       if (type === 'measures') {
+        // TODO support type qualifiers on min and max
+        const type = BaseQuery.isCalculatedMeasureType(resolvedMember.type) ? resolvedMember.type : 'number';
         memberDefinition = {
           sql,
-          type: resolvedMember.type,
-          aggType: resolvedMember.aggType,
+          type: type,
+          aggType: resolvedMember.type,
           meta: resolvedMember.meta,
           description: resolvedMember.description,
         };

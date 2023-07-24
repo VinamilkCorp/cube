@@ -279,8 +279,8 @@ export class CubeEvaluator extends CubeSymbols {
       if (type === 'measures') {
         memberDefinition = {
           sql,
-          type: 'number',
-          aggType: resolvedMember.type,
+          type: resolvedMember.type,
+          aggType: resolvedMember.aggType,
           meta: resolvedMember.meta,
           description: resolvedMember.description,
         };

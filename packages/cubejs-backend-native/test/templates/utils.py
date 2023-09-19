@@ -17,21 +17,32 @@ def arg_null(a):
   return a
 
 @context_func
+def arg_sum_tuple(tu):
+  return tu[0] + tu[1]
+
+@context_func
+def arg_sum_map(obj):
+  return obj['field_a'] + obj['field_b']
+
+@context_func
+def arg_seq(a):
+  return a
+
+@context_func
+def new_int_tuple():
+  return (1,2)
+
+@context_func
+def new_str_tuple():
+  return ("1", "2")
+
+@context_func
 def load_data_sync():
    client = MyApiClient("google.com")
    return client.load_data()
 
 @context_func
 async def load_data():
-   client = MyApiClient("google.com")
-   return client.load_data()
-
-class MyApiClient:
-  def __init__(self, api_url):
-    self.api_url = api_url
-
-  # mock API call
-  def load_data(self):
     api_response = {
       "cubes": [
         {

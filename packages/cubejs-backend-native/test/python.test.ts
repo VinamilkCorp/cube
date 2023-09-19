@@ -5,30 +5,33 @@ import * as native from '../js';
 import { PyConfiguration } from '../js';
 
 const suite = native.isFallbackBuild() ? xdescribe : describe;
+// TODO(ovr): Find what is going wrong with parallel tests & python on Linux
+const darwinSuite = process.platform === 'darwin' && !native.isFallbackBuild() ? describe : xdescribe;
 
-suite('Python', () => {
-  async function loadConfigurationFile() {
-    const content = await fs.readFile(path.join(process.cwd(), 'test', 'config.py'), 'utf8');
-    console.log('content', {
-      content
-    });
+async function loadConfigurationFile(fileName: string) {
+  const content = await fs.readFile(path.join(process.cwd(), 'test', fileName), 'utf8');
+  console.log('content', {
+    content,
+    fileName
+  });
 
-    const config = await native.pythonLoadConfig(
-      content,
-      {
-        file: 'config.py'
-      }
-    );
+  const config = await native.pythonLoadConfig(
+    content,
+    {
+      fileName
+    }
+  );
 
-    console.log('loaded config', config);
+  console.log(`loaded config ${fileName}`, config);
 
-    return config;
-  }
+  return config;
+}
 
+suite('Python Config', () => {
   let config: PyConfiguration;
 
   beforeAll(async () => {
-    config = await loadConfigurationFile();
+    config = await loadConfigurationFile('config.py');
   });
 
   test('async checkAuth', async () => {
@@ -39,6 +42,7 @@ suite('Python', () => {
       contextToApiScopes: expect.any(Function),
       checkAuth: expect.any(Function),
       queryRewrite: expect.any(Function),
+      repositoryFactory: expect.any(Function),
     });
 
     if (!config.checkAuth) {
@@ -57,6 +61,31 @@ suite('Python', () => {
     }
 
     expect(await config.contextToApiScopes()).toEqual(['meta', 'data', 'jobs']);
+  });
+
+  test('repository factory', async () => {
+    if (!config.repositoryFactory) {
+      throw new Error('repositoryFactory was not defined in config.py');
+    }
+
+    const ctx = {
+      securityContext: { schemaPath: path.join(process.cwd(), 'test', 'fixtures', 'schema-tenant-1') }
+    };
+
+    const repository: any = await config.repositoryFactory(ctx);
+    expect(repository).toEqual({
+      dataSchemaFiles: expect.any(Function)
+    });
+
+    const files = await repository.dataSchemaFiles();
+    expect(files).toContainEqual({
+      fileName: 'test.yml',
+      content: expect.any(String),
+    });
+    expect(files).toContainEqual({
+      fileName: 'test.yml.jinja',
+      content: expect.any(String),
+    });
   });
 
   test('cross language converting (js -> python -> js)', async () => {
@@ -78,6 +107,11 @@ suite('Python', () => {
       obj: {
         field_str: 'string',
       },
+      obj_with_nested_object: {
+        sub_object: {
+          sub_field_str: 'string'
+        }
+      },
       array_int: [1, 2, 3, 4, 5],
       array_obj: [{
         field_str_first: 'string',
@@ -88,6 +122,29 @@ suite('Python', () => {
 
     expect(await config.queryRewrite(input, {})).toEqual(
       input
+    );
+  });
+});
+
+darwinSuite('Scoped Python Config', () => {
+  test('test', async () => {
+    const config = await loadConfigurationFile('scoped-config.py');
+    expect(config).toEqual({
+      schemaPath: 'models',
+      pgSqlPort: 5555,
+      telemetry: false,
+      contextToApiScopes: expect.any(Function),
+      checkAuth: expect.any(Function),
+      queryRewrite: expect.any(Function),
+    });
+
+    if (!config.checkAuth) {
+      throw new Error('checkAuth was not defined in config.py');
+    }
+
+    await config.checkAuth(
+      { requestId: 'test' },
+      'MY_SECRET_TOKEN'
     );
   });
 });

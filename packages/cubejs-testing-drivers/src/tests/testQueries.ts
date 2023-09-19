@@ -49,17 +49,22 @@ export function testQueries(type: string): void {
       driver = (await getDriver(type)).source;
       queries = getCreateQueries(type, suffix);
       console.log(`Creating ${queries.length} fixture tables`);
-      for (const q of queries) {
-        await driver.query(q);
+      try {
+        for (const q of queries) {
+          await driver.query(q);
+        }
+        console.log(`Creating ${queries.length} fixture tables completed`);
+      } catch (e: any) {
+        console.log('Error creating fixtures', e.stack);
+        throw e;
       }
-      console.log(`Creating ${queries.length} fixture tables completed`);
     });
   
     afterAll(async () => {
       try {
         const tables = Object
           .keys(fixtures.tables)
-          .map((key: string) => `${fixtures.tables[key]}${suffix}`);
+          .map((key: string) => `${fixtures.tables[key]}_${suffix}`);
         console.log(`Dropping ${tables.length} fixture tables`);
         for (const t of tables) {
           await driver.dropTable(t);

@@ -5,6 +5,7 @@ import { camelize } from 'inflection';
 import { UserError } from './UserError';
 import { DynamicReference } from './DynamicReference';
 import { camelizeCube } from './utils';
+import { BaseQuery } from '../adapter';
 
 const FunctionRegex = /function\s+\w+\(([A-Za-z0-9_,]*)|\(([\s\S]*?)\)\s*=>|\(?(\w+)\)?\s*=>/;
 const CONTEXT_SYMBOLS = {
@@ -320,9 +321,11 @@ export class CubeSymbols {
       const sql = new Function(path[0], `return \`\${${memberRef.member}}\`;`);
       let memberDefinition;
       if (type === 'measures') {
+        // TODO support type qualifiers on min and max
+        const measureType = BaseQuery.isCalculatedMeasureType(resolvedMember.type) ? resolvedMember.type : 'number';
         memberDefinition = {
           sql,
-          type: 'number',
+          type: measureType,
           aggType: resolvedMember.type,
           meta: resolvedMember.meta,
           description: resolvedMember.description,

@@ -31,6 +31,7 @@ import {
 } from 'graphql-scalars';
 
 import { QueryType, MemberType } from './types/enums';
+import e from 'express';
 
 const DateTimeScalar = asNexusMethod(DateTimeResolver, 'date');
 
@@ -416,6 +417,33 @@ export function makeSchema(metaConfig: any): GraphQLSchema {
           });
         }
       }));
+      
+      types.push(
+        enumType({
+          name: `${objectName(cube.config.name)}OrderByColumn`,
+          members: cube.config.measures.filter(it => it.isVisible).map(it => {
+            return safeName(it.name)
+          }).concat(
+            cube.config.dimensions.filter(it => it.isVisible).map(it => {
+              return safeName(it.name)
+            })
+          )
+        })
+      )
+
+      types.push(
+        inputObjectType({
+          name: `${objectName(cube.config.name)}OrderByKeyValue`,
+          definition(t) {
+            t.field('key', {
+              type: `${objectName(cube.config.name)}OrderByColumn`
+            })
+            t.field('direction', {
+              type: 'OrderBy'
+            })
+          }
+        })
+      )
 
       types.push(inputObjectType({
         name: `${objectName(cube.config.name)}OrderByInput`,
@@ -434,6 +462,9 @@ export function makeSchema(metaConfig: any): GraphQLSchema {
               });
             }
           });
+          t.list.field('_orderByList', {
+            type: `${objectName(cube.config.name)}OrderByKeyValue`
+          })
         }
       }));
     }
@@ -532,7 +563,15 @@ export function makeSchema(metaConfig: any): GraphQLSchema {
             // todo: throw if both RootOrderByInput and [Cube]OrderByInput provided
             if (orderByArg) {
               Object.keys(orderByArg).forEach(key => {
-                order.push([`${cubeName}.${key}`, orderByArg[key]]);
+                if (key == '_orderByList') {
+                  if (Array.isArray(orderByArg[key])) {
+                    orderByArg[key].forEach(({ key: sortKey, direction }) => {
+                      order.push([`${cubeName}.${sortKey}`, direction]);
+                    })
+                  }
+                } else {
+                  order.push([`${cubeName}.${key}`, orderByArg[key]]);
+                }
               });
             }
 

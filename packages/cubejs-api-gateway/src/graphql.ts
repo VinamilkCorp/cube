@@ -31,7 +31,6 @@ import {
 } from 'graphql-scalars';
 
 import { QueryType, MemberType } from './types/enums';
-import e from 'express';
 
 const DateTimeScalar = asNexusMethod(DateTimeResolver, 'date');
 

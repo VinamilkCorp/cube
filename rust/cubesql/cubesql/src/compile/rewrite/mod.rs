@@ -6,19 +6,18 @@ pub mod rewriter;
 pub mod rules;
 
 use crate::{
-    compile::rewrite::analysis::{LogicalPlanAnalysis, Member},
+    compile::rewrite::analysis::{LogicalPlanAnalysis, Member, OriginalExpr},
     CubeError,
 };
 use datafusion::{
     arrow::datatypes::DataType,
     error::DataFusionError,
     logical_plan::{
-        window_frames::WindowFrame, Column, DFSchema, Expr, ExprRewritable, ExprRewriter,
-        JoinConstraint, JoinType, Operator,
+        plan::SubqueryType, window_frames::WindowFrame, Column, DFSchema, Expr, ExprRewritable,
+        ExprRewriter, JoinConstraint, JoinType, Operator,
     },
     physical_plan::{
-        aggregates::AggregateFunction, functions::BuiltinScalarFunction,
-        window_functions::WindowFunction,
+        aggregates::AggregateFunction, functions::BuiltinScalarFunction, windows::WindowFunction,
     },
     scalar::ScalarValue,
 };
@@ -109,6 +108,7 @@ crate::plan_to_language! {
             input: Arc<LogicalPlan>,
             subqueries: Vec<LogicalPlan>,
             schema: DFSchemaRef,
+            types: Vec<SubqueryType>,
         },
         Union {
             inputs: Vec<LogicalPlan>,
@@ -172,6 +172,7 @@ crate::plan_to_language! {
             left: Box<Expr>,
             op: Operator,
             right: Box<Expr>,
+            all: bool,
         },
         LikeExpr {
             like_type: LikeType,
@@ -241,6 +242,11 @@ crate::plan_to_language! {
             list: Vec<Expr>,
             negated: bool,
         },
+        InSubquery {
+            expr: Box<Expr>,
+            subquery: Box<Expr>,
+            negated: bool,
+        },
         WildcardExpr {},
         GetIndexedFieldExpr {
             expr: Box<Expr>,
@@ -262,6 +268,7 @@ crate::plan_to_language! {
             order_expr: Vec<Expr>,
             alias: Option<String>,
             ungrouped: bool,
+            ungrouped_scan: bool,
         },
         WrappedSelectJoin {
             input: Arc<LogicalPlan>,
@@ -401,6 +408,28 @@ crate::plan_to_language! {
             members: Vec<LogicalPlan>,
             alias_to_cube: Vec<(String, String)>,
         },
+        AggregateSplitPushDownReplacer {
+            expr: Arc<Expr>,
+            list_node: Arc<Expr>,
+            alias_to_cube: Vec<(String, String)>,
+        },
+        AggregateSplitPullUpReplacer {
+            inner_expr: Arc<Expr>,
+            outer_expr: Arc<Expr>,
+            list_node: Arc<Expr>,
+            alias_to_cube: Vec<(String, String)>,
+        },
+        ProjectionSplitPushDownReplacer {
+            expr: Arc<Expr>,
+            list_node: Arc<Expr>,
+            alias_to_cube: Vec<(String, String)>,
+        },
+        ProjectionSplitPullUpReplacer {
+            inner_expr: Arc<Expr>,
+            outer_expr: Arc<Expr>,
+            list_node: Arc<Expr>,
+            alias_to_cube: Vec<(String, String)>,
+        },
         GroupExprSplitReplacer {
             members: Vec<LogicalPlan>,
             alias_to_cube: Vec<(String, String)>,
@@ -413,12 +442,14 @@ crate::plan_to_language! {
             member: Arc<LogicalPlan>,
             alias_to_cube: Vec<(String, String)>,
             ungrouped: bool,
+            in_projection: bool,
             cube_members: Vec<LogicalPlan>,
         },
         WrapperPullupReplacer {
             member: Arc<LogicalPlan>,
             alias_to_cube: Vec<(String, String)>,
             ungrouped: bool,
+            in_projection: bool,
             cube_members: Vec<LogicalPlan>,
         },
         // NOTE: converting this to a list might provide rewrite improvements
@@ -430,6 +461,9 @@ crate::plan_to_language! {
             name: String,
             members: Vec<LogicalPlan>,
             meta: Option<Vec<(String, String)>>,
+        },
+        QueryParam {
+            index: usize,
         },
     }
 }
@@ -755,9 +789,10 @@ fn wrapped_select(
     order_expr: impl Display,
     alias: impl Display,
     ungrouped: impl Display,
+    ungrouped_scan: impl Display,
 ) -> String {
     format!(
-        "(WrappedSelect {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
+        "(WrappedSelect {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
         select_type,
         projection_expr,
         group_expr,
@@ -772,6 +807,7 @@ fn wrapped_select(
         order_expr,
         alias,
         ungrouped,
+        ungrouped_scan
     )
 }
 
@@ -821,7 +857,6 @@ fn wrapped_select_joins_empty_tail() -> String {
     "WrappedSelectJoins".to_string()
 }
 
-#[allow(dead_code)]
 fn wrapped_select_filter_expr(left: impl Display, right: impl Display) -> String {
     format!("(WrappedSelectFilterExpr {} {})", left, right)
 }
@@ -1175,6 +1210,52 @@ fn outer_aggregate_split_replacer(members: impl Display, alias_to_cube: impl Dis
     )
 }
 
+fn aggregate_split_pushdown_replacer(
+    expr: impl Display,
+    list_node: impl Display,
+    alias_to_cube: impl Display,
+) -> String {
+    format!(
+        "(AggregateSplitPushDownReplacer {} {} {})",
+        expr, list_node, alias_to_cube
+    )
+}
+
+fn aggregate_split_pullup_replacer(
+    inner_expr: impl Display,
+    outer_expr: impl Display,
+    list_node: impl Display,
+    alias_to_cube: impl Display,
+) -> String {
+    format!(
+        "(AggregateSplitPullUpReplacer {} {} {} {})",
+        inner_expr, outer_expr, list_node, alias_to_cube
+    )
+}
+
+fn projection_split_pushdown_replacer(
+    expr: impl Display,
+    list_node: impl Display,
+    alias_to_cube: impl Display,
+) -> String {
+    format!(
+        "(ProjectionSplitPushDownReplacer {} {} {})",
+        expr, list_node, alias_to_cube
+    )
+}
+
+fn projection_split_pullup_replacer(
+    inner_expr: impl Display,
+    outer_expr: impl Display,
+    list_node: impl Display,
+    alias_to_cube: impl Display,
+) -> String {
+    format!(
+        "(ProjectionSplitPullUpReplacer {} {} {} {})",
+        inner_expr, outer_expr, list_node, alias_to_cube
+    )
+}
+
 fn group_expr_split_replacer(members: impl Display, alias_to_cube: impl Display) -> String {
     format!("(GroupExprSplitReplacer {} {})", members, alias_to_cube)
 }
@@ -1194,11 +1275,12 @@ fn wrapper_pushdown_replacer(
     members: impl Display,
     alias_to_cube: impl Display,
     ungrouped: impl Display,
+    in_projection: impl Display,
     cube_members: impl Display,
 ) -> String {
     format!(
-        "(WrapperPushdownReplacer {} {} {} {})",
-        members, alias_to_cube, ungrouped, cube_members
+        "(WrapperPushdownReplacer {} {} {} {} {})",
+        members, alias_to_cube, ungrouped, in_projection, cube_members
     )
 }
 
@@ -1206,11 +1288,12 @@ fn wrapper_pullup_replacer(
     members: impl Display,
     alias_to_cube: impl Display,
     ungrouped: impl Display,
+    in_projection: impl Display,
     cube_members: impl Display,
 ) -> String {
     format!(
-        "(WrapperPullupReplacer {} {} {} {})",
-        members, alias_to_cube, ungrouped, cube_members
+        "(WrapperPullupReplacer {} {} {} {} {})",
+        members, alias_to_cube, ungrouped, in_projection, cube_members
     )
 }
 
@@ -1358,10 +1441,18 @@ pub fn original_expr_name(
     egraph: &EGraph<LogicalPlanLanguage, LogicalPlanAnalysis>,
     id: Id,
 ) -> Option<String> {
-    egraph[id].data.original_expr.as_ref().map(|e| match e {
-        Expr::Column(c) => c.name.to_string(),
-        _ => e.name(&DFSchema::empty()).unwrap(),
-    })
+    egraph[id]
+        .data
+        .original_expr
+        .as_ref()
+        .and_then(|e| match e {
+            OriginalExpr::Expr(e) => Some(e),
+            _ => None,
+        })
+        .map(|e| match e {
+            Expr::Column(c) => c.name.to_string(),
+            _ => e.name(&DFSchema::empty()).unwrap(),
+        })
 }
 
 fn search_match_chained<'a>(
@@ -1513,5 +1604,29 @@ where
         } else {
             Vec::new()
         }
+    }
+}
+
+pub fn transform_original_expr_to_alias(
+    alias_expr_var: &'static str,
+) -> impl Fn(&mut EGraph<LogicalPlanLanguage, LogicalPlanAnalysis>, Id, &mut Subst) -> bool {
+    let alias_expr_var = var!(alias_expr_var);
+    move |egraph, root, subst| add_root_original_expr_alias(egraph, root, subst, alias_expr_var)
+}
+
+pub fn add_root_original_expr_alias(
+    egraph: &mut EGraph<LogicalPlanLanguage, LogicalPlanAnalysis>,
+    root: Id,
+    subst: &mut Subst,
+    alias_expr_var: Var,
+) -> bool {
+    if let Some(original_expr) = original_expr_name(egraph, root) {
+        let alias = egraph.add(LogicalPlanLanguage::AliasExprAlias(AliasExprAlias(
+            original_expr,
+        )));
+        subst.insert(alias_expr_var, alias);
+        true
+    } else {
+        false
     }
 }

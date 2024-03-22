@@ -3,6 +3,183 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.35.1](https://github.com/cube-js/cube/compare/v0.35.0...v0.35.1) (2024-03-18)
+
+
+### Features
+
+* **docker:** Security upgrade node from 18.19.0 to 18.19.1 ([#7924](https://github.com/cube-js/cube/issues/7924)) ([f33d03e](https://github.com/cube-js/cube/commit/f33d03ed293d489d109b3da774c22d8543c8a081))
+
+
+
+
+
+# [0.35.0](https://github.com/cube-js/cube/compare/v0.34.62...v0.35.0) (2024-03-14)
+
+
+### Features
+
+* **docker:** Upgrade Node.js to 18.x ([8b5b923](https://github.com/cube-js/cube/commit/8b5b9237a6822498829ec7e9fba39a1e02b4b7bd))
+
+
+
+
+
+## [0.34.62](https://github.com/cube-js/cube/compare/v0.34.61...v0.34.62) (2024-03-13)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.61](https://github.com/cube-js/cube/compare/v0.34.60...v0.34.61) (2024-03-11)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.60](https://github.com/cube-js/cube.js/compare/v0.34.59...v0.34.60) (2024-03-02)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.59](https://github.com/cube-js/cube.js/compare/v0.34.58...v0.34.59) (2024-02-28)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.58](https://github.com/cube-js/cube.js/compare/v0.34.57...v0.34.58) (2024-02-27)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.57](https://github.com/cube-js/cube.js/compare/v0.34.56...v0.34.57) (2024-02-26)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.56](https://github.com/cube-js/cube.js/compare/v0.34.55...v0.34.56) (2024-02-20)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.55](https://github.com/cube-js/cube.js/compare/v0.34.54...v0.34.55) (2024-02-15)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.54](https://github.com/cube-js/cube.js/compare/v0.34.53...v0.34.54) (2024-02-13)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.53](https://github.com/cube-js/cube.js/compare/v0.34.52...v0.34.53) (2024-02-13)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.52](https://github.com/cube-js/cube.js/compare/v0.34.51...v0.34.52) (2024-02-13)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.51](https://github.com/cube-js/cube.js/compare/v0.34.50...v0.34.51) (2024-02-11)
+
+
+### Bug Fixes
+
+* **cubesql:** Stabilize split operations for SQL push down ([#7725](https://github.com/cube-js/cube.js/issues/7725)) ([6241e5e](https://github.com/cube-js/cube.js/commit/6241e5e9335148947a687f7e3d6b56929ba46c36))
+
+
+
+
+
+## [0.34.50](https://github.com/cube-js/cube/compare/v0.34.49...v0.34.50) (2024-01-31)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.49](https://github.com/cube-js/cube.js/compare/v0.34.48...v0.34.49) (2024-01-26)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.48](https://github.com/cube-js/cube.js/compare/v0.34.47...v0.34.48) (2024-01-25)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.47](https://github.com/cube-js/cube.js/compare/v0.34.46...v0.34.47) (2024-01-23)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.46](https://github.com/cube-js/cube.js/compare/v0.34.45...v0.34.46) (2024-01-18)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.45](https://github.com/cube-js/cube.js/compare/v0.34.44...v0.34.45) (2024-01-16)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
+## [0.34.44](https://github.com/cube-js/cube/compare/v0.34.43...v0.34.44) (2024-01-15)
+
+**Note:** Version bump only for package @cubejs-backend/docker
+
+
+
+
+
 ## [0.34.43](https://github.com/cube-js/cube/compare/v0.34.42...v0.34.43) (2024-01-11)
 
 **Note:** Version bump only for package @cubejs-backend/docker

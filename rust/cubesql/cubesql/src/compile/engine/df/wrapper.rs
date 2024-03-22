@@ -3,6 +3,7 @@ use crate::{
         engine::df::scan::{CubeScanNode, DataType, MemberField, WrappedSelectNode},
         rewrite::WrappedSelectType,
     },
+    config::ConfigObj,
     sql::AuthContextRef,
     transport::{
         AliasedColumn, LoadRequestMeta, MetaContext, SpanId, SqlGenerator, SqlTemplates,
@@ -10,6 +11,7 @@ use crate::{
     },
     CubeError,
 };
+use chrono::{Days, NaiveDate, SecondsFormat, TimeZone, Utc};
 use cubeclient::models::V1LoadRequestQuery;
 use datafusion::{
     error::{DataFusionError, Result},
@@ -23,7 +25,10 @@ use datafusion::{
 use itertools::Itertools;
 use regex::{Captures, Regex};
 use serde_derive::*;
-use std::{any::Any, collections::HashMap, fmt, future::Future, pin::Pin, result, sync::Arc};
+use std::{
+    any::Any, collections::HashMap, convert::TryInto, fmt, future::Future, pin::Pin, result,
+    sync::Arc,
+};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SqlQuery {
@@ -103,6 +108,7 @@ pub struct CubeScanWrapperNode {
     pub request: Option<V1LoadRequestQuery>,
     pub member_fields: Option<Vec<MemberField>>,
     pub span_id: Option<Arc<SpanId>>,
+    pub config_obj: Arc<dyn ConfigObj>,
 }
 
 impl CubeScanWrapperNode {
@@ -111,6 +117,7 @@ impl CubeScanWrapperNode {
         meta: Arc<MetaContext>,
         auth_context: AuthContextRef,
         span_id: Option<Arc<SpanId>>,
+        config_obj: Arc<dyn ConfigObj>,
     ) -> Self {
         Self {
             wrapped_plan,
@@ -120,6 +127,7 @@ impl CubeScanWrapperNode {
             request: None,
             member_fields: None,
             span_id,
+            config_obj,
         }
     }
 
@@ -137,6 +145,7 @@ impl CubeScanWrapperNode {
             request: Some(request),
             member_fields: Some(member_fields),
             span_id: self.span_id.clone(),
+            config_obj: self.config_obj.clone(),
         }
     }
 }
@@ -161,6 +170,48 @@ lazy_static! {
     static ref DATE_PART_REGEX: Regex = Regex::new("^[A-Za-z_ ]+$").unwrap();
 }
 
+macro_rules! generate_sql_for_timestamp {
+    (@generic $value:ident, $value_block:expr, $sql_generator:expr, $sql_query:expr) => {
+        if let Some($value) = $value {
+            let value = $value_block.to_rfc3339_opts(SecondsFormat::Millis, true);
+            (
+                $sql_generator
+                    .get_sql_templates()
+                    .timestamp_literal_expr(value)
+                    .map_err(|e| {
+                        DataFusionError::Internal(format!(
+                            "Can't generate SQL for timestamp: {}",
+                            e
+                        ))
+                    })?,
+                $sql_query,
+            )
+        } else {
+            ("NULL".to_string(), $sql_query)
+        }
+    };
+    ($value:ident, timestamp, $sql_generator:expr, $sql_query:expr) => {
+        generate_sql_for_timestamp!(
+            @generic $value, { Utc.timestamp_opt($value as i64, 0).unwrap() }, $sql_generator, $sql_query
+        )
+    };
+    ($value:ident, timestamp_millis_opt, $sql_generator:expr, $sql_query:expr) => {
+        generate_sql_for_timestamp!(
+            @generic $value, { Utc.timestamp_millis_opt($value as i64).unwrap() }, $sql_generator, $sql_query
+        )
+    };
+    ($value:ident, timestamp_micros, $sql_generator:expr, $sql_query:expr) => {
+        generate_sql_for_timestamp!(
+            @generic $value, { Utc.timestamp_micros($value as i64).unwrap() }, $sql_generator, $sql_query
+        )
+    };
+    ($value:ident, $method:ident, $sql_generator:expr, $sql_query:expr) => {
+        generate_sql_for_timestamp!(
+            @generic $value, { Utc.$method($value as i64) }, $sql_generator, $sql_query
+        )
+    };
+}
+
 impl CubeScanWrapperNode {
     pub async fn generate_sql(
         &self,
@@ -168,11 +219,12 @@ impl CubeScanWrapperNode {
         load_request_meta: Arc<LoadRequestMeta>,
     ) -> result::Result<Self, CubeError> {
         let schema = self.schema();
+        let wrapped_plan = self.wrapped_plan.clone();
         let (sql, request, member_fields) = Self::generate_sql_for_node(
             Arc::new(self.clone()),
             transport,
             load_request_meta,
-            self.wrapped_plan.clone(),
+            self.clone().set_max_limit_for_node(wrapped_plan),
             true,
         )
         .await
@@ -208,6 +260,45 @@ impl CubeScanWrapperNode {
             Ok((sql, request, member_fields))
         })?;
         Ok(self.with_sql_and_request(sql, request, member_fields))
+    }
+
+    pub fn set_max_limit_for_node(self, node: Arc<LogicalPlan>) -> Arc<LogicalPlan> {
+        let stream_mode = self.config_obj.stream_mode();
+        if stream_mode {
+            return node;
+        }
+
+        let query_limit = self.config_obj.non_streaming_query_max_row_limit();
+        match node.as_ref() {
+            LogicalPlan::Extension(Extension {
+                node: extension_node,
+            }) => {
+                let cube_scan_node = extension_node
+                    .as_any()
+                    .downcast_ref::<CubeScanNode>()
+                    .cloned();
+                let wrapped_select_node = extension_node
+                    .as_any()
+                    .downcast_ref::<WrappedSelectNode>()
+                    .cloned();
+                if let Some(node) = cube_scan_node {
+                    let mut new_node = node.clone();
+                    new_node.request.limit = Some(query_limit);
+                    Arc::new(LogicalPlan::Extension(Extension {
+                        node: Arc::new(new_node),
+                    }))
+                } else if let Some(node) = wrapped_select_node {
+                    let mut new_node = node.clone();
+                    new_node.limit = Some(query_limit as usize);
+                    Arc::new(LogicalPlan::Extension(Extension {
+                        node: Arc::new(new_node),
+                    }))
+                } else {
+                    node.clone()
+                }
+            }
+            _ => node.clone(),
+        }
     }
 
     pub fn generate_sql_for_node(
@@ -306,7 +397,7 @@ impl CubeScanWrapperNode {
                         window_expr,
                         from,
                         joins: _joins,
-                        filter_expr: _filter_expr,
+                        filter_expr,
                         having_expr: _having_expr,
                         limit,
                         offset,
@@ -439,6 +530,20 @@ impl CubeScanWrapperNode {
                             )
                             .await?;
 
+                            let (filter, sql) = Self::generate_column_expr(
+                                plan.clone(),
+                                schema.clone(),
+                                filter_expr.clone(),
+                                sql,
+                                generator.clone(),
+                                &column_remapping,
+                                &mut next_remapping,
+                                alias.clone(),
+                                can_rename_columns,
+                                ungrouped_scan_node.clone(),
+                            )
+                            .await?;
+
                             let (window, sql) = Self::generate_column_expr(
                                 plan.clone(),
                                 schema.clone(),
@@ -535,6 +640,17 @@ impl CubeScanWrapperNode {
                                 );
                                 load_request.dimensions = Some(
                                     group_by
+                                        .iter()
+                                        .map(|m| {
+                                            Self::ungrouped_member_def(
+                                                m,
+                                                &ungrouped_scan_node.used_cubes,
+                                            )
+                                        })
+                                        .collect::<Result<_>>()?,
+                                );
+                                load_request.segments = Some(
+                                    filter
                                         .iter()
                                         .map(|m| {
                                             Self::ungrouped_member_def(
@@ -647,7 +763,16 @@ impl CubeScanWrapperNode {
                                         aggregate,
                                         // TODO
                                         from_alias.unwrap_or("".to_string()),
-                                        None,
+                                        if !filter.is_empty() {
+                                            Some(
+                                                filter
+                                                    .iter()
+                                                    .map(|f| f.expr.to_string())
+                                                    .join(" AND "),
+                                            )
+                                        } else {
+                                            None
+                                        },
                                         None,
                                         order,
                                         limit,
@@ -774,25 +899,41 @@ impl CubeScanWrapperNode {
             } else {
                 original_alias.clone()
             };
-            if original_alias != alias {
-                if !next_remapping.contains_key(&Column::from_name(&alias)) {
-                    next_remapping.insert(original_alias_key, Column::from_name(&alias));
+            if !next_remapping.contains_key(&Column::from_name(&alias)) {
+                next_remapping.insert(original_alias_key, Column::from_name(&alias));
+                if let Some(from_alias) = &from_alias {
                     next_remapping.insert(
                         Column {
                             name: original_alias.clone(),
-                            relation: from_alias.clone(),
+                            relation: Some(from_alias.clone()),
                         },
                         Column {
                             name: alias.clone(),
-                            relation: from_alias.clone(),
+                            relation: Some(from_alias.clone()),
                         },
                     );
-                } else {
-                    return Err(CubeError::internal(format!(
-                        "Can't generate SQL for column expr: duplicate alias {}",
-                        alias
-                    )));
+                    if let Expr::Column(column) = &original_expr {
+                        if let Some(original_relation) = &column.relation {
+                            if original_relation != from_alias {
+                                next_remapping.insert(
+                                    Column {
+                                        name: original_alias.clone(),
+                                        relation: Some(original_relation.clone()),
+                                    },
+                                    Column {
+                                        name: alias.clone(),
+                                        relation: Some(from_alias.clone()),
+                                    },
+                                );
+                            }
+                        }
+                    }
                 }
+            } else {
+                return Err(CubeError::internal(format!(
+                    "Can't generate SQL for column expr: duplicate alias {}",
+                    alias
+                )));
             }
 
             aliased_columns.push(AliasedColumn {
@@ -886,7 +1027,15 @@ impl CubeScanWrapperNode {
                             match c.relation.as_ref() {
                                 Some(r) => format!(
                                     "{}.{}",
-                                    r,
+                                    sql_generator
+                                        .get_sql_templates()
+                                        .quote_identifier(&r)
+                                        .map_err(|e| {
+                                            DataFusionError::Internal(format!(
+                                                "Can't generate SQL for column: {}",
+                                                e
+                                            ))
+                                        })?,
                                     sql_generator
                                         .get_sql_templates()
                                         .quote_identifier(&c.name)
@@ -1099,30 +1248,33 @@ impl CubeScanWrapperNode {
                     )
                     .await?;
                     let data_type = match data_type {
-                        DataType::Null => "NULL",
-                        DataType::Boolean => "BOOLEAN",
-                        DataType::Int8 => "INTEGER",
-                        DataType::Int16 => "INTEGER",
-                        DataType::Int32 => "INTEGER",
-                        DataType::Int64 => "INTEGER",
-                        DataType::UInt8 => "INTEGER",
-                        DataType::UInt16 => "INTEGER",
-                        DataType::UInt32 => "INTEGER",
-                        DataType::UInt64 => "INTEGER",
-                        DataType::Float16 => "FLOAT",
-                        DataType::Float32 => "FLOAT",
-                        DataType::Float64 => "DOUBLE PRECISION",
-                        DataType::Timestamp(_, _) => "TIMESTAMP",
-                        DataType::Date32 => "DATE",
-                        DataType::Date64 => "DATE",
-                        DataType::Time32(_) => "TIME",
-                        DataType::Time64(_) => "TIME",
-                        DataType::Duration(_) => "INTERVAL",
-                        DataType::Interval(_) => "INTERVAL",
-                        DataType::Binary => "BYTEA",
-                        DataType::FixedSizeBinary(_) => "BYTEA",
-                        DataType::Utf8 => "TEXT",
-                        DataType::LargeUtf8 => "TEXT",
+                        DataType::Null => "NULL".to_string(),
+                        DataType::Boolean => "BOOLEAN".to_string(),
+                        DataType::Int8 => "INTEGER".to_string(),
+                        DataType::Int16 => "INTEGER".to_string(),
+                        DataType::Int32 => "INTEGER".to_string(),
+                        DataType::Int64 => "INTEGER".to_string(),
+                        DataType::UInt8 => "INTEGER".to_string(),
+                        DataType::UInt16 => "INTEGER".to_string(),
+                        DataType::UInt32 => "INTEGER".to_string(),
+                        DataType::UInt64 => "INTEGER".to_string(),
+                        DataType::Float16 => "FLOAT".to_string(),
+                        DataType::Float32 => "FLOAT".to_string(),
+                        DataType::Float64 => "DOUBLE PRECISION".to_string(),
+                        DataType::Timestamp(_, _) => "TIMESTAMP".to_string(),
+                        DataType::Date32 => "DATE".to_string(),
+                        DataType::Date64 => "DATE".to_string(),
+                        DataType::Time32(_) => "TIME".to_string(),
+                        DataType::Time64(_) => "TIME".to_string(),
+                        DataType::Duration(_) => "INTERVAL".to_string(),
+                        DataType::Interval(_) => "INTERVAL".to_string(),
+                        DataType::Binary => "BYTEA".to_string(),
+                        DataType::FixedSizeBinary(_) => "BYTEA".to_string(),
+                        DataType::Utf8 => "TEXT".to_string(),
+                        DataType::LargeUtf8 => "TEXT".to_string(),
+                        DataType::Decimal(precision, scale) => {
+                            format!("NUMERIC({}, {})", precision, scale)
+                        }
                         x => {
                             return Err(DataFusionError::Execution(format!(
                                 "Can't generate SQL for cast: type isn't supported: {:?}",
@@ -1132,7 +1284,7 @@ impl CubeScanWrapperNode {
                     };
                     let resulting_sql = sql_generator
                         .get_sql_templates()
-                        .cast_expr(expr, data_type.to_string())
+                        .cast_expr(expr, data_type)
                         .map_err(|e| {
                             DataFusionError::Internal(format!("Can't generate SQL for cast: {}", e))
                         })?;
@@ -1167,7 +1319,21 @@ impl CubeScanWrapperNode {
                 // Expr::TableUDF { .. } => {}
                 Expr::Literal(literal) => {
                     Ok(match literal {
-                        // ScalarValue::Boolean(b) => {}
+                        ScalarValue::Boolean(b) => (
+                            b.map(|b| {
+                                sql_generator
+                                    .get_sql_templates()
+                                    .literal_bool_expr(b)
+                                    .map_err(|e| {
+                                        DataFusionError::Internal(format!(
+                                            "Can't generate SQL for literal bool: {}",
+                                            e
+                                        ))
+                                    })
+                            })
+                            .unwrap_or(Ok("NULL".to_string()))?,
+                            sql_query,
+                        ),
                         ScalarValue::Float32(f) => (
                             f.map(|f| format!("{}", f)).unwrap_or("NULL".to_string()),
                             sql_query,
@@ -1217,13 +1383,91 @@ impl CubeScanWrapperNode {
                         // ScalarValue::Binary(_) => {}
                         // ScalarValue::LargeBinary(_) => {}
                         // ScalarValue::List(_, _) => {}
-                        // ScalarValue::Date32(_) => {}
+                        ScalarValue::Date32(x) => {
+                            if let Some(x) = x {
+                                let days = Days::new(x.abs().try_into().unwrap());
+                                let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+                                let new_date = if x < 0 {
+                                    epoch.checked_sub_days(days)
+                                } else {
+                                    epoch.checked_add_days(days)
+                                };
+                                let Some(new_date) = new_date else {
+                                    return Err(DataFusionError::Internal(format!(
+                                        "Can't generate SQL for date: day out of bounds ({})",
+                                        x
+                                    )));
+                                };
+                                let formatted_date = new_date.format("%Y-%m-%d").to_string();
+                                (
+                                    sql_generator
+                                        .get_sql_templates()
+                                        .scalar_function(
+                                            "DATE".to_string(),
+                                            vec![format!("'{}'", formatted_date)],
+                                            None,
+                                            None,
+                                        )
+                                        .map_err(|e| {
+                                            DataFusionError::Internal(format!(
+                                                "Can't generate SQL for date: {}",
+                                                e
+                                            ))
+                                        })?,
+                                    sql_query,
+                                )
+                            } else {
+                                ("NULL".to_string(), sql_query)
+                            }
+                        }
                         // ScalarValue::Date64(_) => {}
-                        // ScalarValue::TimestampSecond(_, _) => {}
-                        // ScalarValue::TimestampMillisecond(_, _) => {}
-                        // ScalarValue::TimestampMicrosecond(_, _) => {}
-                        // ScalarValue::TimestampNanosecond(_, _) => {}
-                        // ScalarValue::IntervalYearMonth(_) => {}
+                        ScalarValue::TimestampSecond(s, _) => {
+                            generate_sql_for_timestamp!(s, timestamp, sql_generator, sql_query)
+                        }
+                        ScalarValue::TimestampMillisecond(ms, None) => {
+                            generate_sql_for_timestamp!(
+                                ms,
+                                timestamp_millis_opt,
+                                sql_generator,
+                                sql_query
+                            )
+                        }
+                        ScalarValue::TimestampMicrosecond(ms, None) => {
+                            generate_sql_for_timestamp!(
+                                ms,
+                                timestamp_micros,
+                                sql_generator,
+                                sql_query
+                            )
+                        }
+                        ScalarValue::TimestampNanosecond(nanoseconds, None) => {
+                            generate_sql_for_timestamp!(
+                                nanoseconds,
+                                timestamp_nanos,
+                                sql_generator,
+                                sql_query
+                            )
+                        }
+                        ScalarValue::IntervalYearMonth(x) => {
+                            if let Some(x) = x {
+                                let (num, date_part) = (x, "MONTH");
+                                let interval = format!("{} {}", num, date_part);
+                                (
+                                    sql_generator
+                                        .get_sql_templates()
+                                        .interval_expr(interval, num.into(), date_part.to_string())
+                                        .map_err(|e| {
+                                            DataFusionError::Internal(format!(
+                                                "Can't generate SQL for interval: {}",
+                                                e
+                                            ))
+                                        })?,
+                                    sql_query,
+                                )
+                            } else {
+                                ("NULL".to_string(), sql_query)
+                            }
+                        }
                         ScalarValue::IntervalDayTime(x) => {
                             if let Some(x) = x {
                                 let days = x >> 32;
@@ -1258,6 +1502,7 @@ impl CubeScanWrapperNode {
                         }
                         // ScalarValue::IntervalMonthDayNano(_) => {}
                         // ScalarValue::Struct(_, _) => {}
+                        ScalarValue::Null => ("NULL".to_string(), sql_query),
                         x => {
                             return Err(DataFusionError::Internal(format!(
                                 "Can't generate SQL for literal: {:?}",
@@ -1605,6 +1850,7 @@ impl UserDefinedLogicalNode for CubeScanWrapperNode {
             request: self.request.clone(),
             member_fields: self.member_fields.clone(),
             span_id: self.span_id.clone(),
+            config_obj: self.config_obj.clone(),
         })
     }
 }

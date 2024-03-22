@@ -238,6 +238,14 @@ MotherDuck.
 | -------------------------------- | ---------------------- | --------------------- |
 | A valid MotherDuck service token | N/A                    | N/A                   |
 
+## `CUBEJS_DB_DUCKDB_DATABASE_PATH`
+
+The database filepath to use for connection to a local database.
+
+| Possible Values                   | Default in Development | Default in Production |
+| --------------------------------- | ---------------------- | --------------------- |
+| A valid duckdb database file path | N/A                    | N/A                   |
+
 ## `CUBEJS_DB_DUCKDB_S3_ACCESS_KEY_ID`
 
 The AWS Access Key ID to use for S3 connections.
@@ -246,7 +254,7 @@ The AWS Access Key ID to use for S3 connections.
 | ------------------------- | ---------------------- | --------------------- |
 | A valid AWS Access Key ID | N/A                    | N/A                   |
 
-## `CUBEJS_DB_DUCKDB_S3_SECRET_ACCESS_KEY_ID`
+## `CUBEJS_DB_DUCKDB_S3_SECRET_ACCESS_KEY`
 
 The AWS Secret Access Key to use for S3 connections.
 
@@ -272,6 +280,30 @@ The AWS region to use for S3 connections.
 | Possible Values                        | Default in Development | Default in Production |
 | -------------------------------------- | ---------------------- | --------------------- |
 | [A valid AWS region][aws-docs-regions] | N/A                    | N/A                   |
+
+## `CUBEJS_DB_DUCKDB_S3_USE_SSL`
+
+Use SSL when connecting to S3.
+
+| Possible Values                        | Default in Development | Default in Production |
+| -------------------------------------- | ---------------------- | --------------------- |
+| True or false                          | N/A                    | N/A                   |
+
+## `CUBEJS_DB_DUCKDB_S3_URL_STYLE`
+
+The URL style to be used by S3.
+
+| Possible Values                        | Default in Development | Default in Production |
+| -------------------------------------- | ---------------------- | --------------------- |
+| [vhost/path]                           | N/A                    | N/A                   |
+
+## `CUBEJS_DB_DUCKDB_S3_SESSION_TOKEN`
+
+The S3 session token.
+
+| Possible Values                        | Default in Development | Default in Production |
+| -------------------------------------- | ---------------------- | --------------------- |
+| A valid S3 session token               | N/A                    | N/A                   |
 
 ## `CUBEJS_DB_ELASTIC_APIKEY_ID`
 
@@ -517,6 +549,24 @@ The timeout value for any queries made to the database by Cube.
 | Possible Values                          | Default in Development | Default in Production |
 | ---------------------------------------- | ---------------------- | --------------------- |
 | A number in seconds or a duration string | `10m`                  | `10m`                 |
+
+## `CUBEJS_DB_FETCH_COLUMNS_BY_ORDINAL_POSITION`
+
+Force fetching of columns by ordinal positions. Certain data-providers (e.g., Redshift) do not guarantee columns in the
+same order on each request (e.g., `SELECT * FROM foo`). This flag ensures that columns will be fetched in proper order
+for pre-aggregation generation.
+
+| Possible Values                                    | Default in Development | Default in Production |
+| -------------------------------------------------- | ---------------------- | --------------------- |
+| Whether to force fetch columns in ordinal position | `true`                 | `true`               |
+
+## `CUBEJS_DB_MATERIALIZE_CLUSTER`
+
+The cluster name to use when connecting to [Materialize](/product/configuration/data-sources/materialize).
+
+| Possible Values                                           | Default in Development | Default in Production |
+| --------------------------------------------------------- | ---------------------- | --------------------- |
+| A valid Materialize cluster name                          | N/A                    | N/A                   |
 
 ## `CUBEJS_DB_SNOWFLAKE_ACCOUNT`
 
@@ -931,7 +981,7 @@ The path where Cube loads data models from.
 
 <WarningBox>
 
-Until v0.34, the default value was `schema`.
+Until v0.35, the default value was `schema`.
 
 </WarningBox>
 
@@ -944,21 +994,6 @@ A password required to access the [SQL API][ref-sql-api].
 | Possible Values | Default in Development | Default in Production |
 | --------------- | ---------------------- | --------------------- |
 | A valid string  | N/A                    | N/A                   |
-
-## `CUBEJS_SQL_PORT`
-
-The port used by the [SQL API][ref-sql-api] to listen to MySQL-compatible
-connections on.
-
-| Possible Values     | Default in Development | Default in Production |
-| ------------------- | ---------------------- | --------------------- |
-| A valid port number | N/A                    | N/A                   |
-
-<WarningBox>
-
-This environment variable is deprecated. Use `CUBEJS_PG_SQL_PORT` instead.
-
-</WarningBox>
 
 ## `CUBEJS_SQL_SUPER_USER`
 

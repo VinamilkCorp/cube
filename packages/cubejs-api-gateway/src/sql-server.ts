@@ -157,7 +157,9 @@ export class SQLServer {
               expressionParams,
               exportAnnotatedSql: true,
               memberExpressions: true,
+              disableExternalPreAggregations: true,
               queryType: 'multi',
+              disableLimitEnforcing: true,
               context,
               res: (message) => {
                 resolve(message);

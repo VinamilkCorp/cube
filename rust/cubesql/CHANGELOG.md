@@ -3,6 +3,238 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.35.1](https://github.com/cube-js/cube/compare/v0.35.0...v0.35.1) (2024-03-18)
+
+**Note:** Version bump only for package @cubejs-backend/cubesql
+
+
+
+
+
+# [0.35.0](https://github.com/cube-js/cube/compare/v0.34.62...v0.35.0) (2024-03-14)
+
+
+### Bug Fixes
+
+* **cubesql:** Don't ignore second filter over same time dimension ([03e7f3a](https://github.com/cube-js/cube/commit/03e7f3a6e68d911368fdba2a79387cbea995cae5))
+
+
+
+
+
+## [0.34.62](https://github.com/cube-js/cube/compare/v0.34.61...v0.34.62) (2024-03-13)
+
+
+### Bug Fixes
+
+* **cubesql:** Fix push down column remapping ([8221a53](https://github.com/cube-js/cube/commit/8221a53a6f679ea9dcfce83df948173ccc89c5f0))
+
+
+
+
+
+## [0.34.61](https://github.com/cube-js/cube/compare/v0.34.60...v0.34.61) (2024-03-11)
+
+
+### Bug Fixes
+
+* **cubesql:** Error out when temporary table already exists ([1a0a324](https://github.com/cube-js/cube/commit/1a0a324274071b9dd9a667505c86698870e236b0))
+* **cubesql:** Fix push down `CASE` with expr ([f1d1242](https://github.com/cube-js/cube/commit/f1d12428870cd6e1a159bd559a3402bb6be778aa))
+* **cubesql:** Fix push down column remapping ([c7736cc](https://github.com/cube-js/cube/commit/c7736ccb2c3e1fd809d98adf58bad012fc38c8b7))
+* **cubesql:** Trim ".0" postfix when converting `Float to `Utf8` ([3131f94](https://github.com/cube-js/cube/commit/3131f94def0a73b29fd1638a40672377339dd7d3))
+
+
+### Features
+
+* **cubesql:** Support `FETCH ... n ROWS ONLY` ([53b0c14](https://github.com/cube-js/cube/commit/53b0c149c7e348cfb4b36890d72c5090762e717b))
+
+
+### Reverts
+
+* Revert "fix(cubesql): Fix push down column remapping" (#7895) ([dec8901](https://github.com/cube-js/cube/commit/dec8901493814f3028e38e0ed17f5868e6ecd7a5)), closes [#7895](https://github.com/cube-js/cube/issues/7895)
+
+
+
+
+
+## [0.34.60](https://github.com/cube-js/cube.js/compare/v0.34.59...v0.34.60) (2024-03-02)
+
+
+### Bug Fixes
+
+* **cubesql:** Allow different `Timestamp` types in `DATEDIFF` ([de9ef08](https://github.com/cube-js/cube.js/commit/de9ef081cae21f551a38219bb64749e08e7ca6fc))
+* **cubesql:** Prioritize ungrouped aggregate scans over ungrouped projection scans so most of the members can be pushed down without wrapping ([#7865](https://github.com/cube-js/cube.js/issues/7865)) ([addde0d](https://github.com/cube-js/cube.js/commit/addde0d373f01e69485b8a0333850917ffad9a2d))
+* **cubesql:** Remove excessive limit on inner wrapped queries ([#7864](https://github.com/cube-js/cube.js/issues/7864)) ([b97268f](https://github.com/cube-js/cube.js/commit/b97268fe5caf55c5b7806c597b9f7b75410f6ba4))
+
+
+### Features
+
+* **cubesql:** In subquery support ([#7851](https://github.com/cube-js/cube.js/issues/7851)) ([8e2a3ec](https://github.com/cube-js/cube.js/commit/8e2a3ecc348c4ab9e6a5ab038c46fcf7f4c3dfcc))
+* **cubesql:** Support split and SUM(1) ([16e2ee0](https://github.com/cube-js/cube.js/commit/16e2ee0d290c502f796891e137556aad2275e52d))
+
+
+
+
+
+## [0.34.59](https://github.com/cube-js/cube.js/compare/v0.34.58...v0.34.59) (2024-02-28)
+
+
+### Bug Fixes
+
+* **cubesql:** Replace only simple ungrouped measures in projections to avoid aggregate over aggregate statements ([#7852](https://github.com/cube-js/cube.js/issues/7852)) ([fa2a89b](https://github.com/cube-js/cube.js/commit/fa2a89b89f91c8eba175130fca33975200690288))
+
+
+
+
+
+## [0.34.58](https://github.com/cube-js/cube.js/compare/v0.34.57...v0.34.58) (2024-02-27)
+
+
+### Bug Fixes
+
+* **cubesql:** Ambiguous reference in case of same two 16 char prefixes are in query ([5051f66](https://github.com/cube-js/cube.js/commit/5051f663b4142735ee1cc455936300f765de62a7))
+
+
+
+
+
+## [0.34.57](https://github.com/cube-js/cube.js/compare/v0.34.56...v0.34.57) (2024-02-26)
+
+
+### Bug Fixes
+
+* **cubesql:** Can't find rewrite due to AST node limit reached for remaining non-equivalent date and timestamp constant folding rules ([b79f697](https://github.com/cube-js/cube.js/commit/b79f69739e2b8cb74cfc86db72fa7157dd723960))
+* **cubesql:** Support `Z` postfix in `Timestamp` response transformation ([c013c91](https://github.com/cube-js/cube.js/commit/c013c913bbeb8dabacc508240ab94956f1172a8b))
+* **cubesql:** Timestamp equals filter support ([754a0df](https://github.com/cube-js/cube.js/commit/754a0df3a20cae5269e961649a01fb5047906645))
+
+
+### Features
+
+* **cubesql:** `WHERE` SQL push down ([#7808](https://github.com/cube-js/cube.js/issues/7808)) ([98b5709](https://github.com/cube-js/cube.js/commit/98b570946905586f16a502f83b0a1cf8e4aa92a6))
+* **cubesql:** Allow replacement of aggregation functions in SQL push down ([#7811](https://github.com/cube-js/cube.js/issues/7811)) ([97fa757](https://github.com/cube-js/cube.js/commit/97fa757a0d22e6d7d9432d686005765b28271f7c))
+* **cubesql:** Support placeholders in `OFFSET`, `FETCH ...` ([60aad90](https://github.com/cube-js/cube.js/commit/60aad90a237800f4471bb4efa10ec590b50e19fe))
+* **cubesql:** Support temporary tables ([7022611](https://github.com/cube-js/cube.js/commit/702261156fc3748fc7d3103f28bd4f4648fd4e0b))
+
+
+
+
+
+## [0.34.56](https://github.com/cube-js/cube.js/compare/v0.34.55...v0.34.56) (2024-02-20)
+
+
+### Bug Fixes
+
+* **cubesql:** Allow `NULL` values in `CASE` ([a97acdc](https://github.com/cube-js/cube.js/commit/a97acdc996dd68a0e2c00c155dfe30a863440ecc))
+
+
+
+
+
+## [0.34.55](https://github.com/cube-js/cube.js/compare/v0.34.54...v0.34.55) (2024-02-15)
+
+
+### Bug Fixes
+
+* **cubesql:** Quote `FROM` alias for SQL push down to avoid name clas… ([#7755](https://github.com/cube-js/cube.js/issues/7755)) ([4e2732a](https://github.com/cube-js/cube.js/commit/4e2732ae9997762a95fc946a5392b50e4dbf8622))
+
+
+### Features
+
+* **cubesql:** Strings with Unicode Escapes ([#7756](https://github.com/cube-js/cube.js/issues/7756)) ([49acad5](https://github.com/cube-js/cube.js/commit/49acad51e6a2b7ffa9ec0b584aaaa6e54f4f1434))
+
+
+
+
+
+## [0.34.52](https://github.com/cube-js/cube.js/compare/v0.34.51...v0.34.52) (2024-02-13)
+
+
+### Bug Fixes
+
+* **cubesql:** Support new Metabase meta queries ([0bc09fd](https://github.com/cube-js/cube.js/commit/0bc09fdbefaf8b4e184f4c0803919103789acb0a))
+
+
+### Features
+
+* **cubesql:** Always Prefer SQL push down over aggregation in Datafusion ([#7751](https://github.com/cube-js/cube.js/issues/7751)) ([b4b0f05](https://github.com/cube-js/cube.js/commit/b4b0f05d16eb08f2be3831a5d48468be8d8b9d76))
+* **cubesql:** EXTRACT(EPOCH, ...) support ([#7734](https://github.com/cube-js/cube.js/issues/7734)) ([b4deacd](https://github.com/cube-js/cube.js/commit/b4deacddf0a2e06b0b1f4216ca735a41e52724e2))
+* **cubesql:** Support `TimestampNanosecond` in `CASE` ([69aed08](https://github.com/cube-js/cube.js/commit/69aed0875afb3b2d56176f4bdfdee7b1acd17ce9))
+* **cubesql:** Support Athena OFFSET and LIMIT push down ([00c2a6b](https://github.com/cube-js/cube.js/commit/00c2a6b3cc88fde5d65d02549d3458818e4a8e42))
+
+
+
+
+
+## [0.34.51](https://github.com/cube-js/cube.js/compare/v0.34.50...v0.34.51) (2024-02-11)
+
+
+### Bug Fixes
+
+* **cubesql:** Enable constant folding for unary minus exprs ([704d05a](https://github.com/cube-js/cube.js/commit/704d05aecafada282a6bcbd57bd0519bb5a12aa5))
+* **cubesql:** Fix `CASE` type with `NULL` values ([2b7cc30](https://github.com/cube-js/cube.js/commit/2b7cc304b101330ca072fa0c4a3a6e9ae9efa2a5))
+* **cubesql:** Stabilize split operations for SQL push down ([#7725](https://github.com/cube-js/cube.js/issues/7725)) ([6241e5e](https://github.com/cube-js/cube.js/commit/6241e5e9335148947a687f7e3d6b56929ba46c36))
+
+
+### Features
+
+* **cubesql:** Extend `DATEDIFF` push down support ([ecaaf1c](https://github.com/cube-js/cube.js/commit/ecaaf1ca5566ff7cc27289468440e6a902a09609))
+
+
+
+
+
+## [0.34.48](https://github.com/cube-js/cube.js/compare/v0.34.47...v0.34.48) (2024-01-25)
+
+
+### Bug Fixes
+
+* **cubesql:** Fix unary minus operator precedence ([d5a935a](https://github.com/cube-js/cube.js/commit/d5a935ac3bb16c1dda6c30982cdc9ef787a24967))
+* **cubesql:** Segment mixed with a filter and a date range filter may affect push down of `inDateRange` filter to time dimension ([#7684](https://github.com/cube-js/cube.js/issues/7684)) ([f29a7be](https://github.com/cube-js/cube.js/commit/f29a7be8379097b8de657ebc2e46f40bae3ccce9))
+* **cubesql:** Support Sigma Sunday week granularity ([3d492eb](https://github.com/cube-js/cube.js/commit/3d492eb5feb84503a1bffda7481ed8b562939e44))
+
+
+### Features
+
+* **cubesql:** Support KPI chart in Thoughtspot ([dbab39e](https://github.com/cube-js/cube.js/commit/dbab39e63a1c752a56a2cb06169a479a3e9cb11e))
+* **cubesql:** Support unwrapping BINARY expr from SUM(<expr>) ([#7683](https://github.com/cube-js/cube.js/issues/7683)) ([ce93cc7](https://github.com/cube-js/cube.js/commit/ce93cc7a0f667409d725b34913405f18d18f629b))
+
+
+
+
+
+## [0.34.47](https://github.com/cube-js/cube.js/compare/v0.34.46...v0.34.47) (2024-01-23)
+
+
+### Features
+
+* **cubesql:** TO_CHAR - support more formats, correct NULL handling ([#7671](https://github.com/cube-js/cube.js/issues/7671)) ([2d1e2d2](https://github.com/cube-js/cube.js/commit/2d1e2d216c99af68a2d5cf1b2acd2f5e2a623323))
+
+
+
+
+
+## [0.34.46](https://github.com/cube-js/cube.js/compare/v0.34.45...v0.34.46) (2024-01-18)
+
+
+### Features
+
+* **cubesql:** Cache plan rewrites with and without replaced parameters ([#7670](https://github.com/cube-js/cube.js/issues/7670)) ([c360d3c](https://github.com/cube-js/cube.js/commit/c360d3c9da61b45f8215cc17db098cfa0a74c899))
+
+
+
+
+
+## [0.34.45](https://github.com/cube-js/cube.js/compare/v0.34.44...v0.34.45) (2024-01-16)
+
+
+### Features
+
+* **cubesql:** Query rewrite cache ([#7647](https://github.com/cube-js/cube.js/issues/7647)) ([79888af](https://github.com/cube-js/cube.js/commit/79888afc3823a3ef29ba76c440828c8c5d719ae4))
+
+
+
+
+
 ## [0.34.42](https://github.com/cube-js/cube.js/compare/v0.34.41...v0.34.42) (2024-01-07)
 
 

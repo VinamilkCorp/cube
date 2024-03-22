@@ -12,6 +12,7 @@ const CONTEXT_SYMBOLS = {
   USER_CONTEXT: 'securityContext',
   SECURITY_CONTEXT: 'securityContext',
   FILTER_PARAMS: 'filterParams',
+  FILTER_GROUP: 'filterGroup',
   SQL_UTILS: 'sqlUtils'
 };
 
@@ -371,14 +372,18 @@ export class CubeSymbols {
           type: measureType,
           aggType: resolvedMember.type,
           meta: resolvedMember.meta,
+          title: resolvedMember.title,
           description: resolvedMember.description,
+          format: resolvedMember.format,
         };
       } else if (type === 'dimensions') {
         memberDefinition = {
           sql,
           type: resolvedMember.type,
           meta: resolvedMember.meta,
+          title: resolvedMember.title,
           description: resolvedMember.description,
+          format: resolvedMember.format,
         };
       } else if (type === 'segments') {
         memberDefinition = {

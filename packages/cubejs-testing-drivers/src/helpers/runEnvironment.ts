@@ -74,14 +74,23 @@ class CubeCliEnvironment implements CubeEnvironment {
 
   public async down() {
     if (this.cli) {
-      process.kill(-this.cli.pid, 'SIGINT');
+      const { cli } = this;
+      await new Promise((resolve) => {
+        cli.once('disconnect', () => resolve(null));
+        cli.once('exit', () => resolve(null));
+        cli.kill('SIGKILL');
+      });
       process.stdout.write('Cube Exited\n');
     }
   }
 }
 
-export async function runEnvironment(type: string, suf?: string): Promise<Environment> {
-  const fixtures = getFixtures(type);
+export async function runEnvironment(
+  type: string,
+  suf?: string,
+  { extendedEnv }: { extendedEnv?: string } = {}
+): Promise<Environment> {
+  const fixtures = getFixtures(type, extendedEnv);
   getTempPath();
   getSchemaPath(type, suf);
   getCubeJsPath(type);
@@ -106,7 +115,10 @@ export async function runEnvironment(type: string, suf?: string): Promise<Enviro
     composeFile,
   );
   compose.withStartupTimeout((isCI() ? 60 : 30) * 1000);
-  compose.withEnvironment({ CUBEJS_TELEMETRY: 'false' });
+  compose.withEnvironment({
+    CUBEJS_TELEMETRY: 'false',
+    CUBEJS_SCHEMA_PATH: 'schema'
+  });
 
   const _path = `${path.resolve(process.cwd(), `./fixtures/${type}.env`)}`;
   if (fs.existsSync(_path)) {
@@ -132,7 +144,7 @@ export async function runEnvironment(type: string, suf?: string): Promise<Enviro
   });
   // TODO extract as a config
   if (type === 'mssql') {
-    compose.withWaitStrategy('data', Wait.forLogMessage('Service Broker manager has started'));
+    compose.withWaitStrategy('data', Wait.forLogMessage('SQL Server is now ready for client connections'));
   }
   // TODO: Add health checks for all drivers
   if (type === 'clickhouse') {
@@ -165,11 +177,15 @@ export async function runEnvironment(type: string, suf?: string): Promise<Enviro
   }
   const cube = cliEnv ? {
     port: 4000,
+    pgPort: parseInt(fixtures.cube.ports[1], 10),
     logs: cliEnv.cli?.stdout || process.stdout
   } : {
     port: environment.getContainer('cube').getMappedPort(
       parseInt(fixtures.cube.ports[0], 10),
     ),
+    pgPort: fixtures.cube.ports[1] && environment.getContainer('cube').getMappedPort(
+      parseInt(fixtures.cube.ports[1], 10),
+    ) || undefined,
     logs: await environment.getContainer('cube').logs(),
   };
 

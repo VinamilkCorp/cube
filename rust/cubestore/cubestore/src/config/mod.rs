@@ -535,6 +535,8 @@ pub trait ConfigObj: DIService {
     fn remote_files_cleanup_delay_secs(&self) -> u64;
 
     fn remote_files_cleanup_batch_size(&self) -> u64;
+
+    fn create_table_max_retries(&self) -> u64;
 }
 
 #[derive(Debug, Clone)]
@@ -631,6 +633,7 @@ pub struct ConfigObjImpl {
     pub local_files_cleanup_delay_secs: u64,
     pub remote_files_cleanup_delay_secs: u64,
     pub remote_files_cleanup_batch_size: u64,
+    pub create_table_max_retries: u64,
 }
 
 crate::di_service!(ConfigObjImpl, [ConfigObj]);
@@ -987,6 +990,10 @@ impl ConfigObj for ConfigObjImpl {
         self.remote_files_cleanup_batch_size
     }
 
+    fn create_table_max_retries(&self) -> u64 {
+        self.create_table_max_retries
+    }
+
     fn cachestore_cache_eviction_below_threshold(&self) -> u8 {
         self.cachestore_cache_eviction_below_threshold
     }
@@ -1076,7 +1083,12 @@ where
 pub fn env_parse_size(name: &str, default: usize, max: Option<usize>, min: Option<usize>) -> usize {
     let v = match env::var(name).ok() {
         None => {
-            return default;
+            if cfg!(debug_assertions) {
+                // It's needed to check that default values are correct
+                default.to_string()
+            } else {
+                return default;
+            }
         }
         Some(v) => v,
     };
@@ -1128,17 +1140,16 @@ where
 
 impl Config {
     fn calculate_cache_compaction_trigger_size(cache_max_size: usize) -> usize {
-        match cache_max_size >> 20 {
-            // TODO: Enable this limits after moving to separate CF for cache
-            // d if d < 32 => 32 * 9,
-            // d if d < 64 => 64 * 8,
-            // d if d < 128 => 128 * 7,
-            // d if d < 256 => 256 * 6,
-            d if d < 512 => 512 * 5,
+        let trigger_size = match cache_max_size >> 20 {
+            d if d < 32 => (640 << 20),
+            d if d < 64 => (1280 << 20),
+            d if d < 512 => cache_max_size * 5,
             d if d < 1024 => cache_max_size * 4,
             d if d < 4096 => cache_max_size * 3,
             _ => cache_max_size * 2,
-        }
+        };
+
+        std::cmp::max(trigger_size, 512 << 20)
     }
 
     pub fn default() -> Config {
@@ -1496,6 +1507,7 @@ impl Config {
                     "CUBESTORE_REMOTE_FILES_CLEANUP_BATCH_SIZE",
                     50000,
                 ),
+                create_table_max_retries: env_parse("CUBESTORE_CREATE_TABLE_MAX_RETRIES", 3),
             }),
         }
     }
@@ -1604,6 +1616,7 @@ impl Config {
                 local_files_cleanup_delay_secs: 600,
                 remote_files_cleanup_delay_secs: 3600,
                 remote_files_cleanup_batch_size: 50000,
+                create_table_max_retries: 3,
             }),
         }
     }

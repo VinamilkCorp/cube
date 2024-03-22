@@ -69,7 +69,7 @@ impl QueryPlanExt for QueryPlan {
         required_format: protocol::Format,
     ) -> Result<Option<protocol::RowDescription>, ConnectionError> {
         match &self {
-            QueryPlan::MetaOk(_, _) => Ok(None),
+            QueryPlan::MetaOk(_, _) | QueryPlan::CreateTempTable(_, _, _, _, _) => Ok(None),
             QueryPlan::MetaTabular(_, frame) => {
                 let mut result = vec![];
 
@@ -947,7 +947,7 @@ impl AsyncPostgresShim {
                     .session
                     .server
                     .compiler_cache
-                    .meta(self.auth_context()?)
+                    .meta(self.auth_context()?, self.session.state.protocol.clone())
                     .await?;
 
                 let plan = convert_statement_to_cube_query(
@@ -1039,7 +1039,7 @@ impl AsyncPostgresShim {
             .session
             .server
             .compiler_cache
-            .meta(self.auth_context()?)
+            .meta(self.auth_context()?, self.session.state.protocol.clone())
             .await?;
 
         let stmt_replacer = StatementPlaceholderReplacer::new();
@@ -1327,10 +1327,7 @@ impl AsyncPostgresShim {
                 hold,
             } => {
                 // TODO: move envs to config
-                let stream_mode = std::env::var("CUBESQL_STREAM_MODE")
-                    .ok()
-                    .map(|v| v.parse::<bool>().unwrap())
-                    .unwrap_or(false);
+                let stream_mode = self.session.server.config_obj.stream_mode();
                 if stream_mode {
                     return Err(ConnectionError::Protocol(
                         protocol::ErrorResponse::error(
@@ -1638,7 +1635,7 @@ impl AsyncPostgresShim {
             .session
             .server
             .compiler_cache
-            .meta(self.auth_context()?)
+            .meta(self.auth_context()?, self.session.state.protocol.clone())
             .await?;
 
         let statements =

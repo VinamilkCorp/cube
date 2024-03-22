@@ -1,4 +1,4 @@
-FROM node:16.20.2-bullseye-slim as builder
+FROM node:18.19.1-bullseye-slim as builder
 
 WORKDIR /cube
 COPY . .
@@ -25,7 +25,7 @@ RUN cp -r /cube/replacement_packages/cubejs-api-gateway/* /cube/node_modules/@cu
 RUN cp -r /cube/replacement_packages/cubejs-server-core/* /cube/node_modules/@cubejs-backend/server-core/dist/src/
 RUN rm -r /cube/replacement_packages/
 
-FROM node:16.20.2-bullseye-slim
+FROM node:18.19.1-bullseye-slim
 
 ARG IMAGE_VERSION=unknown
 

@@ -17,6 +17,14 @@ RUN apt-get update \
 # action. So, a process will use the root lock file here.
 RUN yarn install --prod && yarn cache clean
 
+RUN rm -r /cube/node_modules/@cubejs-backend/api-gateway/dist/src
+RUN rm -r /cube/node_modules/@cubejs-backend/server-core/dist/src
+RUN mkdir -p /cube/node_modules/@cubejs-backend/api-gateway/dist/src
+RUN mkdir -p /cube/node_modules/@cubejs-backend/server-core/dist/src
+RUN cp -r /cube/replacement_packages/cubejs-api-gateway/* /cube/node_modules/@cubejs-backend/api-gateway/dist/src/
+RUN cp -r /cube/replacement_packages/cubejs-server-core/* /cube/node_modules/@cubejs-backend/server-core/dist/src/
+RUN rm -r /cube/replacement_packages/
+
 FROM node:18.20.1-bullseye-slim
 
 ARG IMAGE_VERSION=unknown
